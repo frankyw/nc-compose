@@ -214,6 +214,29 @@ services:
       - traefik.http.services.filebot.loadbalancer.server.port=5452
       - traefik.docker.network=traefik_proxy
 
+  duplicati:
+    image: linuxserver/duplicati
+    container_name: duplicati
+    restart: always
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/duplicati:/config
+      - ${USERDIR}:/source
+    networks:
+      - traefik_proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.duplicati.rule=Host(`duplicati.${DOMAINNAME}`)
+      - traefik.http.routers.duplicati.entrypoints=https
+      - traefik.http.routers.duplicati.tls=true
+      - traefik.http.routers.duplicati.tls.options=default
+      - traefik.http.routers.duplicati.middlewares=auth,securityheaders
+      - traefik.http.services.duplicati.loadbalancer.server.port=8200
+      - traefik.docker.network=traefik_proxy
+
   watchtower:
     container_name: watchtower
     restart: always
