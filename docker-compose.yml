@@ -167,7 +167,7 @@ services:
       - traefik.docker.network=traefik_proxy
 
   portainer:
-    image: portainer/portainer:latest
+    image: portainer/portainer-ce
     container_name: portainer
     restart: always
     command: -H unix:///var/run/docker.sock
