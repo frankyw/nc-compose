@@ -23,15 +23,15 @@ services:
       - traefik.http.routers.emby.rule=Host(`media.${DOMAINNAME}`,`emby.${DOMAINNAME}`)
       - traefik.http.routers.emby.entrypoints=https
       - traefik.http.routers.emby.tls=true
-      - traefik.http.services.emby.loadbalancer.server.port=8096
       - traefik.http.routers.emby.tls.options=default
       - traefik.http.routers.emby.middlewares=securityheaders
+      - traefik.http.services.emby.loadbalancer.server.port=8096
       - traefik.docker.network=traefik_proxy
 
   transmission-openvpn:
     hostname: transmission
     container_name: transmission
-    image: haugene/transmission-openvpn:2.12
+    image: haugene/transmission-openvpn:3.3
     restart: always
     volumes:
       - '${USERDIR}/TransmissionDL:/downloads'
@@ -44,7 +44,6 @@ services:
       - OPENVPN_USERNAME=${OPENVPN_USERNAME}
       - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
       - OPENVPN_PROVIDER=neil-ovpn
-      - WEBPROXY_ENABLED=true
       - LOCAL_NETWORK=192.168.0.0/16
       - TRANSMISSION_WEB_UI=transmission-web-control
       - PUID=${PUID}
@@ -62,6 +61,8 @@ services:
       - traefik.http.routers.transmission.rule=Host(`transmission.${DOMAINNAME}`)
       - traefik.http.routers.transmission.entrypoints=https
       - traefik.http.routers.transmission.tls=true
+      - traefik.http.routers.transmission.tls.options=default
+      - traefik.http.routers.transmission.middlewares=securityheaders
       - traefik.http.services.transmission.loadbalancer.server.port=9091
       - traefik.docker.network=traefik_proxy  
     networks:
@@ -144,25 +145,25 @@ services:
     image: wiserain/flexget
     container_name: flexget
     restart: always
+    depends_on:
+      - transmission-openvpn
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
       - FG_WEBUI_PASSWD=${FLEXGET_PASSWORD}
       - FG_LOG_LEVEL=info
-      - HTTPS_PROXY=https://transmission:8888
-      - HTTP_PROXY=http://transmission:8888
+    network_mode: service:transmission-openvpn
     volumes:
       - ${USERDIR}/docker/flexget:/config
       - /raidarray:/raidarray
-    networks:
-      - traefik_proxy
-      - default
     labels:
       - traefik.enable=true
       - traefik.http.routers.flexget.rule=Host(`flexget.${DOMAINNAME}`)
       - traefik.http.routers.flexget.entrypoints=https
       - traefik.http.routers.flexget.tls=true
+      - traefik.http.routers.flexget.tls.options=default
+      - traefik.http.routers.flexget.middlewares=securityheaders
       - traefik.http.services.flexget.loadbalancer.server.port=5050
       - traefik.docker.network=traefik_proxy
 
