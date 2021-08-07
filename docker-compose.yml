@@ -7,7 +7,7 @@ services:
     image: emby/embyserver:beta
     volumes:
       - ${USERDIR}/docker/emby:/config
-      - /raidarray:/raidarray
+      - /tank/Video:/tank/Video
       - ${USERDIR}/docker/shared:/shared
     ports:
       - "8096:8096/tcp"
@@ -38,7 +38,7 @@ services:
       - '/etc/localtime:/etc/localtime:ro'
       - '${USERDIR}/docker/transmission/neil-ovpn:/etc/openvpn/neil-ovpn'
       - '${USERDIR}/docker/transmission:/config'
-      - /raidarray:/raidarray
+      - /tank/Tranmission:/tank/Tranmission
     environment:
       - CREATE_TUN_DEVICE=true
       - OPENVPN_USERNAME=${OPENVPN_USERNAME}
@@ -156,7 +156,7 @@ services:
     network_mode: service:transmission-openvpn
     volumes:
       - ${USERDIR}/docker/flexget:/config
-      - /raidarray:/raidarray
+      - /tank/Video:/tank/Video
     labels:
       - traefik.enable=true
       - traefik.http.routers.flexget.rule=Host(`flexget.${DOMAINNAME}`)
@@ -197,7 +197,7 @@ services:
     volumes:
       - ${USERDIR}/docker/filebot:/data
       - ${USERDIR}/TransmissionDL:/downloads
-      - /raidarray:/raidarray
+      - /tank/Video:/tank/Video
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
