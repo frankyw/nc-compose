@@ -28,34 +28,49 @@ services:
       - traefik.http.services.emby.loadbalancer.server.port=8096
       - traefik.docker.network=traefik_proxy
 
-  transmission-openvpn:
-    hostname: transmission
-    container_name: transmission
-    image: haugene/transmission-openvpn:3.3
+  wireguard:
+    container_name: wireguard
     restart: always
+    image: linuxserver/wireguard
     volumes:
-      - '${USERDIR}/TransmissionDL:/downloads'
-      - '/etc/localtime:/etc/localtime:ro'
-      - '${USERDIR}/docker/transmission/neil-ovpn:/etc/openvpn/neil-ovpn'
-      - '${USERDIR}/docker/transmission:/config'
-      - /tank/Tranmission:/tank/Tranmission
-    environment:
-      - CREATE_TUN_DEVICE=true
-      - OPENVPN_USERNAME=${OPENVPN_USERNAME}
-      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
-      - OPENVPN_PROVIDER=neil-ovpn
-      - LOCAL_NETWORK=192.168.0.0/16
-      - TRANSMISSION_WEB_UI=transmission-web-control
-      - PUID=${PUID}
-      - PGID=${PGID}
-    env_file:
-      - '${USERDIR}/docker/transmission/transmission.env'
+      - ${USERDIR}/docker/wireguard:/config
+      - ${USERDIR}/docker/shared:/shared
+      - /lib/modules:/lib/modules
+    ports:
+      - 9091:9091
+      - 51000:51000/udp
+      - 51000:51000
     cap_add:
       - NET_ADMIN
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - traefik_proxy
+      - default
+
+  transmission:
+    image: linuxserver/transmission:latest
+    container_name: transmission
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - TRANSMISSION_WEB_HOME=/transmission-web-control/
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASS}
+    volumes:
+      - ${USERDIR}/docker/transmission-ls:/config
+      - ${USERDIR}/TransmissionDL:/downloads
+      - /tank/Tranmission:/tank/Tranmission
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
     labels:
       - traefik.enable=true
       - traefik.http.routers.transmission.rule=Host(`transmission.${DOMAINNAME}`)
@@ -64,15 +79,7 @@ services:
       - traefik.http.routers.transmission.tls.options=default
       - traefik.http.routers.transmission.middlewares=securityheaders
       - traefik.http.services.transmission.loadbalancer.server.port=9091
-      - traefik.docker.network=traefik_proxy  
-    networks:
-      - traefik_proxy
-      - default
-    ports:
-      - "9091:9091"
-    dns:
-      - 1.1.1.1
-      - 1.0.0.1
+      - traefik.docker.network=traefik_proxy
       
   traefik:
     hostname: traefik
@@ -146,14 +153,14 @@ services:
     container_name: flexget
     restart: always
     depends_on:
-      - transmission-openvpn
+      - wireguard
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
       - FG_WEBUI_PASSWD=${FLEXGET_PASSWORD}
       - FG_LOG_LEVEL=info
-    network_mode: service:transmission-openvpn
+    network_mode: service:wireguard
     volumes:
       - ${USERDIR}/docker/flexget:/config
       - /tank/Video:/tank/Video
