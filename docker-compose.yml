@@ -52,6 +52,8 @@ services:
     networks:
       - traefik_proxy
       - default
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
 
   transmission:
     image: linuxserver/transmission:latest
@@ -67,7 +69,7 @@ services:
       - ${USERDIR}/docker/transmission-ls:/config
       - ${USERDIR}/TransmissionDL:/downloads
       - /tank/Tranmission:/tank/Tranmission
-    restart: unless-stopped
+    restart: always
     depends_on:
       - wireguard
     network_mode: service:wireguard
