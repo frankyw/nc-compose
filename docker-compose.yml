@@ -113,7 +113,7 @@ services:
       - --log.level=INFO
       - --accessLog=true
       - --accessLog.filePath=/traefik.log
-      - --accessLog.bufferingSize=100
+      - --accessLog.bufferingSize=1000
       - --accessLog.filters.statusCodes=400-499
       - --certificatesresolvers.cloudflare.acme.email=${NEIL_EMAIL}
       - --certificatesresolvers.cloudflare.acme.dnschallenge=true
@@ -265,9 +265,34 @@ services:
       - EMAIL=${CLOUDFLARE_EMAIL}
       - API=${CLOUDFLARE_API_KEY}
 
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ${USERDIR}/docker/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    networks:
+      traefik_proxy:
+      nc_macvlan:
+        ipv4_address: ${STATICIP_HA}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homeassistant.rule=Host(`homeassistant.${DOMAINNAME}`)
+      - traefik.http.routers.homeassistant.entrypoints=https
+      - traefik.http.routers.homeassistant.tls=true
+      - traefik.http.routers.homeassistant.tls.options=default
+      - traefik.http.routers.homeassistant.middlewares=securityheaders
+      - traefik.http.services.homeassistant.loadbalancer.server.port=8123
+      - traefik.docker.network=traefik_proxy
+
 networks:
   traefik_proxy:
-    external:
-      name: traefik_proxy
+    external: true
+    name: traefik_proxy
+  nc_macvlan:
+    name: nc_macvlan
+    external: true
   default:
     driver: bridge
