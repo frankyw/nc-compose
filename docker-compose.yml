@@ -8,6 +8,7 @@ services:
     volumes:
       - ${USERDIR}/docker/emby:/config
       - /tank/Video:/tank/Video
+      - /tank/Music:/tank/Music
       - ${USERDIR}/docker/shared:/shared
     ports:
       - "8096:8096/tcp"
@@ -62,7 +63,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-      - TRANSMISSION_WEB_HOME=/transmission-web-control/
+      - TRANSMISSION_WEB_HOME=/config/transmission-web-control-1.6.1-update1/src
       - USER=${TRANSMISSION_USER}
       - PASS=${TRANSMISSION_PASS}
     volumes:
@@ -286,6 +287,29 @@ services:
       - traefik.http.routers.homeassistant.middlewares=securityheaders
       - traefik.http.services.homeassistant.loadbalancer.server.port=8123
       - traefik.docker.network=traefik_proxy
+
+  wg-test:
+    container_name: wg-test
+    restart: always
+    image: linuxserver/wireguard
+    volumes:
+      - ${USERDIR}/docker/wg-test:/config
+      - ${USERDIR}/docker/shared:/shared
+      - /lib/modules:/lib/modules
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - traefik_proxy
+      - default
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
 
 networks:
   traefik_proxy:
