@@ -198,7 +198,7 @@ services:
       - traefik.http.routers.radarr.entrypoints=https
       - traefik.http.routers.radarr.tls=true
       - traefik.http.routers.radarr.tls.options=default
-      - traefik.http.routers.radarr.middlewares=auth,securityheaders
+      - traefik.http.routers.radarr.middlewares=securityheaders
       - traefik.http.services.radarr.loadbalancer.server.port=7878
       - traefik.docker.network=traefik_proxy
 
@@ -229,12 +229,11 @@ services:
     image: ghcr.io/autobrr/autobrr:latest
     container_name: autobrr
     restart: always
-    networks:
-      - proxy
     volumes:
       - ${USERDIR}/docker/autobrr:/config
-    networks:
-      - traefik_proxy
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
     user: ${PUID}:${PGID}
     labels:
       - traefik.enable=true
