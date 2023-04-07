@@ -373,6 +373,40 @@ services:
       - traefik.http.services.plex.loadbalancer.server.port=32400
       - traefik.docker.network=traefik_proxy
 
+  unifi-controller:
+    image: lscr.io/linuxserver/unifi-controller:latest
+    container_name: unifi-controller
+    restart: always
+    volumes:
+      - ${USERDIR}/docker/unifi:/config
+    ports:
+      - 3478:3478/udp
+      - 10001:10001/udp
+      - 8080:8080
+      - 8081:8081
+      - 8443:8443
+      - 8843:8843
+      - 8880:8880
+      - 6789:6789
+    networks:
+      traefik_proxy:
+      nc_macvlan:
+        ipv4_address: ${STATICIP_UNIFI}
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.unifi.rule=Host(`unifi.${DOMAINNAME}`)
+      - traefik.http.routers.unifi.entrypoints=https
+      - traefik.http.routers.unifi.tls=true
+      - traefik.http.routers.unifi.tls.options=default
+      - traefik.http.routers.unifi.middlewares=securityheaders
+      - traefik.http.services.unifi.loadbalancer.server.port=8443
+      - traefik.http.services.unifi.loadbalancer.server.scheme=https
+      - traefik.docker.network=traefik_proxy
+
 networks:
   traefik_proxy:
     external: true
