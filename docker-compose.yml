@@ -1,4 +1,21 @@
 version: "3.7"
+
+networks:
+  traefik_proxy:
+    external: true
+    name: traefik_proxy
+  nc_macvlan:
+    name: nc_macvlan
+    external: true
+    driver_opts:
+      parent: eno1
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.1
+  default:
+    driver: bridge
+
 services:
 
   emby:
@@ -152,6 +169,63 @@ services:
       - traefik.http.services.transmission.loadbalancer.server.port=9091
       - traefik.docker.network=traefik_proxy
 
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - TZ=${TZ}
+      - FIREWALL_VPN_INPUT_PORTS=${GLUETUN_PORT}
+    volumes:
+      - ${USERDIR}/docker/gluetun/purevpn.conf:/gluetun/wireguard/wg0.conf
+    networks:
+      traefik_proxy:
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+    volumes:
+      - ${USERDIR}/docker/qbittorrent:/config
+      - ${USERDIR}/qBittorrentDL:/downloads
+    network_mode: service:gluetun
+    restart: always
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.qbittorrent.rule=Host(`qbit.${DOMAINNAME}`)
+      - traefik.http.routers.qbittorrent.entrypoints=https
+      - traefik.http.routers.qbittorrent.tls=true
+      - traefik.http.routers.qbittorrent.tls.options=default
+      - traefik.http.routers.qbittorrent.middlewares=securityheaders
+      - traefik.http.services.qbittorrent.loadbalancer.server.port=8080
+      - traefik.docker.network=traefik_proxy
+
+  qbit_manage:
+    container_name: qbit_manage
+    image: bobokun/qbit_manage
+    volumes:
+      - ${USERDIR}/docker/qbit_manage:/config:rw
+      - ${USERDIR}/qBittorrentDL:/downloads:rw
+    environment:
+      - QBT_SCHEDULE=360
+      - QBT_CONFIG=config.yml
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    restart: always
+    networks:
+      traefik_proxy:
+
   sonarr:
     container_name: sonarr
     image: ghcr.io/hotio/sonarr:v4
@@ -163,10 +237,8 @@ services:
     volumes:
       - ${USERDIR}/docker/sonarr:/config
       - /tank/Video:/video
-      - ${USERDIR}/TransmissionDL:/downloads
-    depends_on:
-      - wireguard
-    network_mode: service:wireguard
+      - ${USERDIR}/qBittorrentDL:/downloads
+    network_mode: service:gluetun
     labels:
       - traefik.enable=true
       - traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAINNAME}`)
@@ -188,10 +260,8 @@ services:
     volumes:
       - ${USERDIR}/docker/radarr:/config
       - /tank/Video:/video
-      - ${USERDIR}/TransmissionDL:/downloads
-    depends_on:
-      - wireguard
-    network_mode: service:wireguard
+      - ${USERDIR}/qBittorrentDL:/downloads
+    network_mode: service:gluetun
     labels:
       - traefik.enable=true
       - traefik.http.routers.radarr.rule=Host(`radarr.${DOMAINNAME}`)
@@ -212,9 +282,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${USERDIR}/docker/jackett:/config
-    depends_on:
-      - wireguard
-    network_mode: service:wireguard
+    network_mode: service:gluetun
     labels:
       - traefik.enable=true
       - traefik.http.routers.jackett.rule=Host(`jackett.${DOMAINNAME}`)
@@ -231,9 +299,7 @@ services:
     restart: always
     volumes:
       - ${USERDIR}/docker/autobrr:/config
-    depends_on:
-      - wireguard
-    network_mode: service:wireguard
+    network_mode: service:gluetun
     user: ${PUID}:${PGID}
     labels:
       - traefik.enable=true
@@ -255,7 +321,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${USERDIR}/docker/unpackerr:/config
-      - ${USERDIR}/TransmissionDL:/downloads
+      - ${USERDIR}/qBittorrentDL:/downloads
     networks:
       - traefik_proxy
 
@@ -406,13 +472,3 @@ services:
       - traefik.http.services.unifi.loadbalancer.server.port=8443
       - traefik.http.services.unifi.loadbalancer.server.scheme=https
       - traefik.docker.network=traefik_proxy
-
-networks:
-  traefik_proxy:
-    external: true
-    name: traefik_proxy
-  nc_macvlan:
-    name: nc_macvlan
-    external: true
-  default:
-    driver: bridge

@@ -18,10 +18,11 @@ The following containers are being run:
 ### Other
 
 * [traefik:latest](https://hub.docker.com/_/traefik) - Official Traefik container, reverse proxy to expose services over TLS using Let's Encrypt in a far simpler way than nginx (imo). 
-* [linuxserver/wireguard](https://hub.docker.com/r/linuxserver/wireguard) - LinuxServer.io Wireguard container, which replaced OpenVPN built into the previous Tranmission container (huge difference!)
-* [linuxserver/transmission](https://hub.docker.com/r/linuxserver/transmission/) - Transmission from LinuxServer.io, uses the Wireguard container for networking.
+* [linuxserver/qbittorrent](https://docs.linuxserver.io/images/docker-qbittorrent/) - Got fed up [Transmission 4.0 slow speeds](https://github.com/transmission/transmission/issues/5261), and switched to qBittorent.
 * [linuxserver/duplicati](https://hub.docker.com/r/linuxserver/duplicati) - A Duplicati container, flexible and easy to use system which backs up files to the cloud.
 * [linuxserver/plex](https://docs.linuxserver.io/images/docker-plex) - Plex for PS5 AR Glasses.
+* [bobokun/qbit_manage](https://hub.docker.com/r/bobokun/qbit_manage) - Very helpful program to cleanup qBitorrent torrents.
+* [qmcgaw/gluetun](https://hub.docker.com/r/qmcgaw/gluetun) - Great VPN container that supports easy Wireguard config.
 * [portainer/portainer](https://hub.docker.com/r/portainer/portainer) - Official Portainer image, used for docker cluster management.
 * [emby/embyserver:beta](https://hub.docker.com/r/emby/embyserver) - Official Emby beta container.
 * [containrrr/watchtower](https://hub.docker.com/r/containrrr/watchtower) - Official Watchtower image to update containers.
