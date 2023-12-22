@@ -210,6 +210,14 @@ services:
       - traefik.http.services.qbittorrent.loadbalancer.server.port=8080
       - traefik.docker.network=traefik_proxy
 
+  qbittools:
+    container_name: qbittools
+    image: registry.gitlab.com/alexkm/qbittools
+    command: reannounce -s gluetun:8080
+    restart: unless-stopped
+    networks:
+      traefik_proxy:
+
   qbit_manage:
     container_name: qbit_manage
     image: bobokun/qbit_manage
