@@ -21,7 +21,7 @@ services:
   emby:
     container_name: emby
     restart: always
-    image: emby/embyserver:beta
+    image: emby/embyserver:4.9.0.5
     volumes:
       - ${USERDIR}/docker/emby:/config
       - /tank/Video:/tank/Video
@@ -38,41 +38,47 @@ services:
       - traefik_proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.emby.rule=Host(`media.${DOMAINNAME}`,`emby.${DOMAINNAME}`)
+      - traefik.http.routers.emby.rule=Host(`media.${DOMAINNAME}`)
       - traefik.http.routers.emby.entrypoints=https
       - traefik.http.routers.emby.tls=true
       - traefik.http.routers.emby.tls.options=default
       - traefik.http.routers.emby.middlewares=securityheaders
       - traefik.http.services.emby.loadbalancer.server.port=8096
       - traefik.docker.network=traefik_proxy
-
-  wireguard:
-    container_name: wireguard
-    restart: always
-    image: linuxserver/wireguard
-    volumes:
-      - ${USERDIR}/docker/wireguard:/config
-      - ${USERDIR}/docker/shared:/shared
-      - /lib/modules:/lib/modules
-    ports:
-      - 9091:9091
-      - 51000:51000/udp
-      - 51000:51000
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    networks:
-      - traefik_proxy
-      - default
-    labels:
-      - com.centurylinklabs.watchtower.enable=false
       
+  lms:
+    container_name: lms
+    image: lmscommunity/logitechmediaserver
+    volumes:
+      - ${USERDIR}/docker/lms:/config:rw
+      - /tank/Music:/music:ro
+      - ${USERDIR}/docker/lms:/playlist:rw
+    ports:
+      - 9000:9000/tcp
+      - 9090:9090/tcp
+      - 3483:3483/tcp
+      - 3483:3483/udp
+    environment:
+      - HTTP_PORT=9000
+      - UID=${PUID}
+      - GID=${PGID}
+      - TZ=${TZ}
+      - EXTRA_ARGS=--advertiseaddr=${STATICIP_LMS}
+    restart: always
+    networks:
+      traefik_proxy:
+      nc_macvlan:
+        ipv4_address: ${STATICIP_LMS}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.lms.rule=Host(`lms.${DOMAINNAME}`)
+      - traefik.http.routers.lms.entrypoints=https
+      - traefik.http.routers.lms.tls=true
+      - traefik.http.routers.lms.tls.options=default
+      - traefik.http.routers.lms.middlewares=securityheaders
+      - traefik.http.services.lms.loadbalancer.server.port=9000
+      - traefik.docker.network=traefik_proxy
+
   traefik:
     hostname: traefik
     image: traefik:latest
@@ -140,37 +146,8 @@ services:
       - $USERDIR/docker/traefik/traefik.log:/traefik.log 
       - $USERDIR/docker/shared:/shared
 
-  transmission:
-    image: linuxserver/transmission:version-3.00-r8
-    # image: linuxserver/transmission
-    container_name: transmission
-    restart: always
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - TRANSMISSION_WEB_HOME=/config/transmission-web-control-1.6.1-update1/src
-      - USER=${TRANSMISSION_USER}
-      - PASS=${TRANSMISSION_PASS}
-    volumes:
-      - ${USERDIR}/docker/transmission-ls:/config
-      - ${USERDIR}/TransmissionDL:/downloads
-      - /tank/Tranmission:/tank/Tranmission
-    depends_on:
-      - wireguard
-    network_mode: service:wireguard
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.transmission.rule=Host(`transmission.${DOMAINNAME}`)
-      - traefik.http.routers.transmission.entrypoints=https
-      - traefik.http.routers.transmission.tls=true
-      - traefik.http.routers.transmission.tls.options=default
-      - traefik.http.routers.transmission.middlewares=securityheaders
-      - traefik.http.services.transmission.loadbalancer.server.port=9091
-      - traefik.docker.network=traefik_proxy
-
   gluetun:
-    image: qmcgaw/gluetun
+    image: qmcgaw/gluetun:v3.38
     container_name: gluetun
     restart: always
     cap_add:
@@ -280,6 +257,29 @@ services:
       - traefik.http.services.radarr.loadbalancer.server.port=7878
       - traefik.docker.network=traefik_proxy
 
+  lidarr:
+    container_name: lidarr
+    image: ghcr.io/hotio/lidarr:latest
+    restart: always
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/lidarr:/config
+      - /tank/Music:/music
+      - ${USERDIR}/qBittorrentDL:/downloads
+    network_mode: service:gluetun
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.lidarr.rule=Host(`lidarr.${DOMAINNAME}`)
+      - traefik.http.routers.lidarr.entrypoints=https
+      - traefik.http.routers.lidarr.tls=true
+      - traefik.http.routers.lidarr.tls.options=default
+      - traefik.http.routers.lidarr.middlewares=securityheaders
+      - traefik.http.services.lidarr.loadbalancer.server.port=8686
+      - traefik.docker.network=traefik_proxy
+
   jackett:
     container_name: jackett
     image: ghcr.io/hotio/jackett:latest
@@ -300,6 +300,17 @@ services:
       - traefik.http.routers.jackett.middlewares=auth,securityheaders
       - traefik.http.services.jackett.loadbalancer.server.port=9117
       - traefik.docker.network=traefik_proxy
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=${TZ}
+    restart: unless-stopped
+    network_mode: service:gluetun
 
   autobrr:
     image: ghcr.io/autobrr/autobrr:latest
@@ -355,6 +366,28 @@ services:
       - traefik.http.routers.portainer.middlewares=securityheaders
       - traefik.http.services.portainer.loadbalancer.server.port=9000
       - traefik.docker.network=traefik_proxy
+
+  # navidrome:
+  #   image: deluan/navidrome:latest
+  #   container_name: navidrome
+  #   user: ${PUID}:${PGID}
+  #   restart: unless-stopped
+  #   networks:
+  #     traefik_proxy:
+  #     nc_macvlan:
+  #       ipv4_address: ${STATICIP_NAVIDROME}
+  #   volumes:
+  #     - "${USERDIR}/docker/navidrome/data:/data"
+  #     - "/tank/Music:/music:ro"
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.navidrome.rule=Host(`navidrome.${DOMAINNAME}`)
+  #     - traefik.http.routers.navidrome.entrypoints=https
+  #     - traefik.http.routers.navidrome.tls=true
+  #     - traefik.http.routers.navidrome.tls.options=default
+  #     - traefik.http.routers.navidrome.middlewares=securityheaders
+  #     - traefik.http.services.navidrome.loadbalancer.server.port=4533
+  #     - traefik.docker.network=traefik_proxy
 
   duplicati:
     image: linuxserver/duplicati
