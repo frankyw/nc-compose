@@ -1,4 +1,3 @@
-version: "3.7"
 
 networks:
   traefik_proxy:
@@ -86,7 +85,6 @@ services:
     restart: always
     domainname: ${DOMAINNAME}
     networks:
-      - default
       - traefik_proxy
     ports:
       - "80:80"
@@ -117,7 +115,7 @@ services:
       - --certificatesresolvers.cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53'
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json'
       - --certificatesResolvers.cloudflare.acme.dnsChallenge.delayBeforeCheck=20
-      #- --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true 
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true 
       #- '--certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory'
       - --entrypoints.https.forwardedHeaders.trustedIPs=173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/12,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,2400:cb00::/32,2606:4700::/32,2803:f800::/32,2405:b500::/32,2405:8100::/32,2a06:98c0::/29,2c0f:f248::/32
     labels:
@@ -149,7 +147,7 @@ services:
       - $USERDIR/docker/shared:/shared
 
   gluetun:
-    image: qmcgaw/gluetun:v3.38
+    image: qmcgaw/gluetun:v3
     container_name: gluetun
     restart: always
     cap_add:
@@ -161,8 +159,13 @@ services:
       - VPN_TYPE=wireguard
       - TZ=${TZ}
       - FIREWALL_VPN_INPUT_PORTS=${GLUETUN_PORT}
-    volumes:
-      - ${USERDIR}/docker/gluetun/purevpn.conf:/gluetun/wireguard/wg0.conf
+      - VPN_ENDPOINT_IP=${VPN_ENDPOINT_IP}
+      - VPN_ENDPOINT_PORT=${VPN_ENDPOINT_PORT}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+    # volumes:
+    #   - ${USERDIR}/docker/gluetun/purevpn.conf:/gluetun/custom.conf
     networks:
       - traefik_proxy
 
@@ -378,34 +381,13 @@ services:
         ipv4_address: ${STATICIP_AGH}
     labels:
       - traefik.enable=true
+      - traefik.docker.network=traefik_proxy
       - traefik.http.routers.adguardhome.rule=Host(`adguard.${DOMAINNAME}`)
       - traefik.http.routers.adguardhome.entrypoints=https
       - traefik.http.routers.adguardhome.tls=true
       - traefik.http.routers.adguardhome.tls.options=default
       - traefik.http.routers.adguardhome.middlewares=securityheaders
       - traefik.http.services.adguardhome.loadbalancer.server.port=3000
-
-  # navidrome:
-  #   image: deluan/navidrome:latest
-  #   container_name: navidrome
-  #   user: ${PUID}:${PGID}
-  #   restart: unless-stopped
-  #   networks:
-  #     traefik_proxy:
-  #     nc_macvlan:
-  #       ipv4_address: ${STATICIP_NAVIDROME}
-  #   volumes:
-  #     - "${USERDIR}/docker/navidrome/data:/data"
-  #     - "/tank/Music:/music:ro"
-  #   labels:
-  #     - traefik.enable=true
-  #     - traefik.http.routers.navidrome.rule=Host(`navidrome.${DOMAINNAME}`)
-  #     - traefik.http.routers.navidrome.entrypoints=https
-  #     - traefik.http.routers.navidrome.tls=true
-  #     - traefik.http.routers.navidrome.tls.options=default
-  #     - traefik.http.routers.navidrome.middlewares=securityheaders
-  #     - traefik.http.services.navidrome.loadbalancer.server.port=4533
-  #     - traefik.docker.network=traefik_proxy
 
   duplicati:
     image: linuxserver/duplicati
