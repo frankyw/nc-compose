@@ -20,7 +20,7 @@ services:
   emby:
     container_name: emby
     restart: always
-    image: emby/embyserver:4.9.0.5
+    image: emby/embyserver:beta
     volumes:
       - ${USERDIR}/docker/emby:/config
       - /tank/Video:/tank/Video
@@ -115,7 +115,7 @@ services:
       - --certificatesresolvers.cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53'
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json'
       - --certificatesResolvers.cloudflare.acme.dnsChallenge.delayBeforeCheck=20
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true 
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablepropagationcheck=true
       #- '--certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory'
       - --entrypoints.https.forwardedHeaders.trustedIPs=173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/12,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,2400:cb00::/32,2606:4700::/32,2803:f800::/32,2405:b500::/32,2405:8100::/32,2a06:98c0::/29,2c0f:f248::/32
     labels:
@@ -155,17 +155,20 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
-      - VPN_SERVICE_PROVIDER=custom
-      - VPN_TYPE=wireguard
       - TZ=${TZ}
-      - FIREWALL_VPN_INPUT_PORTS=${GLUETUN_PORT}
+      - VPN_TYPE=wireguard
+      - VPN_PORT_FORWARDING=on
+      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
+      - VPN_SERVICE_PROVIDER=custom
       - VPN_ENDPOINT_IP=${VPN_ENDPOINT_IP}
       - VPN_ENDPOINT_PORT=${VPN_ENDPOINT_PORT}
       - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
       - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
       - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
-    # volumes:
-    #   - ${USERDIR}/docker/gluetun/purevpn.conf:/gluetun/custom.conf
+      # - VPN_PORT_FORWARDING_UP_COMMAND
+      # - VPN_PORT_FORWARDING_DOWN_COMMAND
+    volumes:
+      - ${USERDIR}/docker/gluetun/config.toml:/gluetun/auth/config.toml:ro
     networks:
       - traefik_proxy
 
@@ -177,6 +180,9 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - WEBUI_PORT=8080
+      - DOCKER_MODS=ghcr.io/t-anc/gsp-qbittorent-gluetun-sync-port-mod:main
+      - GSP_GTN_API_KEY=${GSP_GTN_API_KEY}
+      - GSP_MINIMAL_LOGS=false
     volumes:
       - ${USERDIR}/docker/qbittorrent:/config
       - ${USERDIR}/qBittorrentDL:/downloads
@@ -344,7 +350,7 @@ services:
       - traefik_proxy
 
   portainer:
-    image: portainer/portainer-ce
+    image: portainer/portainer-ee:alpine-sts
     container_name: portainer
     restart: always
     command: -H unix:///var/run/docker.sock
@@ -397,6 +403,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
+      - SETTINGS_ENCRYPTION_KEY=${DUPLICATI_ENCRYPTION_KEY}
     volumes:
       - ${USERDIR}/docker/duplicati:/config
       - ${USERDIR}:/source
@@ -408,7 +415,7 @@ services:
       - traefik.http.routers.duplicati.entrypoints=https
       - traefik.http.routers.duplicati.tls=true
       - traefik.http.routers.duplicati.tls.options=default
-      - traefik.http.routers.duplicati.middlewares=auth,securityheaders
+      - traefik.http.routers.duplicati.middlewares=securityheaders
       - traefik.http.services.duplicati.loadbalancer.server.port=8200
 
   watchtower:
@@ -476,37 +483,3 @@ services:
       - traefik.http.routers.plex.tls.options=default
       - traefik.http.routers.plex.middlewares=securityheaders
       - traefik.http.services.plex.loadbalancer.server.port=32400
-
-  # unifi-controller:
-  #   image: lscr.io/linuxserver/unifi-controller:latest
-  #   container_name: unifi-controller
-  #   restart: always
-  #   volumes:
-  #     - ${USERDIR}/docker/unifi:/config
-  #   ports:
-  #     - 3478:3478/udp
-  #     - 10001:10001/udp
-  #     - 8080:8080
-  #     - 8081:8081
-  #     - 8443:8443
-  #     - 8843:8843
-  #     - 8880:8880
-  #     - 6789:6789
-  #   networks:
-  #     traefik_proxy:
-  #     nc_macvlan:
-  #       ipv4_address: ${STATICIP_UNIFI}
-  #   environment:
-  #     - PUID=${PUID}
-  #     - PGID=${PGID}
-  #     - TZ=${TZ}
-  #   labels:
-  #     - traefik.enable=true
-  #     - traefik.http.routers.unifi.rule=Host(`unifi.${DOMAINNAME}`)
-  #     - traefik.http.routers.unifi.entrypoints=https
-  #     - traefik.http.routers.unifi.tls=true
-  #     - traefik.http.routers.unifi.tls.options=default
-  #     - traefik.http.routers.unifi.middlewares=securityheaders
-  #     - traefik.http.services.unifi.loadbalancer.server.port=8443
-  #     - traefik.http.services.unifi.loadbalancer.server.scheme=https
-  #     - traefik.docker.network=traefik_proxy
