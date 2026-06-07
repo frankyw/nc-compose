@@ -47,7 +47,8 @@ services:
       
   lms:
     container_name: lms
-    image: lmscommunity/logitechmediaserver
+    image: lmscommunity/lyrionmusicserver
+    restart: always
     volumes:
       - ${USERDIR}/docker/lms:/config:rw
       - /tank/Music:/music:ro
@@ -63,7 +64,6 @@ services:
       - GID=${PGID}
       - TZ=${TZ}
       - EXTRA_ARGS=--advertiseaddr=${STATICIP_LMS}
-    restart: always
     networks:
       traefik_proxy:
       nc_macvlan:
@@ -223,7 +223,7 @@ services:
 
   sonarr:
     container_name: sonarr
-    image: ghcr.io/hotio/sonarr:v4
+    image: ghcr.io/hotio/sonarr:latest
     restart: always
     environment:
       - PUID=${PUID}
@@ -417,14 +417,6 @@ services:
       - traefik.http.routers.duplicati.tls.options=default
       - traefik.http.routers.duplicati.middlewares=securityheaders
       - traefik.http.services.duplicati.loadbalancer.server.port=8200
-
-  watchtower:
-    container_name: watchtower
-    restart: always
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --cleanup
 
   cloudflare-ddns:
     container_name: cloudflare-ddns
